@@ -2,6 +2,7 @@ import aiohttp
 import asyncio
 import discord
 import functools
+import re
 from io import BytesIO
 import numpy as np
 import os
@@ -15,6 +16,11 @@ from wordcloud import ImageColorGenerator
 
 # Special thanks to co-author aikaterna for pressing onward
 # with this cog when I had lost motivation!
+
+URL_RE = re.compile(
+    r"([\w+]+\:\/\/)?([\w\d-]+\.)*[\w-]+[\.\:]\w+([\/\?\=\&\#]?[\w-]+)*\/?", flags=re.I
+)
+# https://stackoverflow.com/questions/6038061/regular-expression-to-find-urls-within-a-string
 
 
 class WordClouds(commands.Cog):
@@ -42,6 +48,10 @@ class WordClouds(commands.Cog):
 
     def cog_unload(self):
         self.bot.loop.create_task(self.session.close())
+
+    async def red_delete_data_for_user(self, **kwargs):
+        """Nothing to delete."""
+        return
 
     async def _list_masks(self, ctx):
         masks = sorted(os.listdir(self.mask_folder))
@@ -155,6 +165,7 @@ class WordClouds(commands.Cog):
                 if not message.author.bot:
                     if user is None or user == message.author:
                         text += message.clean_content + " "
+            text = URL_RE.sub("", text)
         except discord.errors.Forbidden:
             await ctx.send("Wordcloud creation failed. I can't see that channel!")
             return
@@ -311,6 +322,9 @@ class WordClouds(commands.Cog):
         This overrides the default excluded list!"""
         guild = ctx.guild
         excluded = await self.conf.guild(guild).excluded()
+        if word in excluded:
+            await ctx.send("'{}' is already in the excluded words.".format(word))
+            return
         excluded.append(word)
         await self.conf.guild(guild).excluded.set(excluded)
         await ctx.send("'{}' added to excluded words.".format(word))

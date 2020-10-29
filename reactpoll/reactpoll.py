@@ -33,16 +33,21 @@ class ReactPoll(commands.Cog):
         self.poll_task = self.bot.loop.create_task(self.poll_closer())
         self.close_loop = True
 
+    async def red_delete_data_for_user(self, **kwargs):
+        """Nothing to delete."""
+        return
+
     @commands.Cog.listener()
     async def on_raw_reaction_add(self, payload: discord.RawReactionActionEvent):
         """
             Handle votes for polls
         """
+        await self.bot.wait_until_red_ready()
         guild = self.bot.get_guild(payload.guild_id)
         if not guild:
             return
         member = guild.get_member(payload.user_id)
-        if member.bot:
+        if not member or member.bot:
             return
         if guild.id not in self.polls:
             # log.info(f"No polls in guild {payload.guild_id}")
@@ -58,13 +63,12 @@ class ReactPoll(commands.Cog):
         """
             Handle votes for polls
         """
+        await self.bot.wait_until_red_ready()
         guild = self.bot.get_guild(payload.guild_id)
         if not guild:
             return
         member = guild.get_member(payload.user_id)
-        if member is None:
-            return
-        if member.bot:
+        if not member or member.bot:
             return
         if guild.id not in self.polls:
             # log.info(f"No polls in guild {payload.guild_id}")
@@ -81,6 +85,7 @@ class ReactPoll(commands.Cog):
         pass
 
     async def poll_closer(self):
+        await self.bot.wait_until_red_ready()
         while self.close_loop:
             # consider making < 60 second polls not use config + this task
             await asyncio.sleep(5)
@@ -210,6 +215,7 @@ class ReactPoll(commands.Cog):
             return await ctx.send("That is not a valid poll message ID.")
         poll = self.polls[ctx.guild.id][poll_id]
         await poll.close_poll()
+        await ctx.tick()
 
     async def handle_pagify(self, ctx: commands.Context, msg: str):
         for page in pagify(msg):
